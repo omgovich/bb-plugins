@@ -1,12 +1,17 @@
 # Omgovich PR Linker
 
-Each chat's pull request, in one place other plugins can read.
+Remembers which pull request each thread is about, so every place that shows
+a thread's PR shows the same, right one.
 
-A chat's PR is the PR of its worktree's current branch, found with
-`gh pr list --head <branch>`. You can also attach any PR by hand; an attached
-PR sticks until you detach it, even when the branch has a PR of its own. bb's
-built-in PR status only knows the branch, so a review worktree on a local
-branch, or a chat that works on someone else's PR, shows nothing there.
+By default that is the PR of the thread's current branch, looked up with
+`gh pr list --head <branch>`. When the branch does not tell — a review thread
+on a local `review/pr-123` copy, a thread that helps with someone else's PR,
+a branch with no PR yet — attach the PR by hand: from the sidebar's row menu
+(**Attach PR…**), by picking it in the Diffs tab, or with `bb pr-link attach`.
+An attached PR stays until you detach it.
+
+bb's own PR status only ever looks at the branch, so in those cases it shows
+nothing. Omgovich Sidebar, Diffs and PR Review read the PR from here instead.
 
 ## What you get
 

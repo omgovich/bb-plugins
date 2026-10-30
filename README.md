@@ -9,12 +9,12 @@ folder under `plugins/` and installs on its own.
 
 | Plugin | What it does |
 | --- | --- |
-| [Omgovich Sidebar](plugins/cursor-sidebar) | Thread list: projects, nesting, status, a live activity line, the thread's PR and branch in the subline |
-| [Omgovich PR Linker](plugins/pr-link) | Each thread's pull request: the PR of its branch, or one attached by hand. Other plugins read it |
-| [Omgovich Diffs](plugins/pr-stack-diff) | A side-panel tab to review every PR of the thread's stack, with Viewed marks and notes sent to the agent |
-| [Omgovich PR Review](plugins/review-pr) | Start a PR review in its own worktree thread from the sidebar or `bb review-pr` |
-| [Omgovich Usage Bars](plugins/usage-bars) | Remaining Claude and Codex usage above the sidebar footer |
-| [Omgovich Reconnect Agent](plugins/restart-session) | A Reconnect button in the thread header: fresh agent process, same history, MCP servers reconnect |
+| [Omgovich Sidebar](plugins/cursor-sidebar) | A replacement for bb's thread list. Each thread shows its project icon, PR and branch, a live line of what the agent is doing, and whether it is working or unread; child threads nest under their parent |
+| [Omgovich PR Linker](plugins/pr-link) | Remembers which pull request each thread is about. It finds the PR from the thread's branch, or you attach one by hand when the branch does not tell (a review thread, someone else's PR). Sidebar, Diffs and PR Review show that PR |
+| [Omgovich Diffs](plugins/pr-stack-diff) | A PR Diffs tab beside the thread for reviewing the agent's work: every PR of a stack, each against its parent, with Viewed marks and line comments sent back to the agent |
+| [Omgovich PR Review](plugins/review-pr) | Paste a PR link and get a new thread that checks the PR out in its own worktree and has an agent review it |
+| [Omgovich Usage Bars](plugins/usage-bars) | How much of your Claude and Codex limits is left, as bars at the bottom of the sidebar |
+| [Omgovich Reconnect Agent](plugins/restart-session) | A Reconnect button in the thread header: restarts the agent's process without losing the conversation, so MCP tools come back after you re-authorize a server |
 
 Sidebar, Diffs and PR Review show the thread's PR through PR Linker;
 install it alongside them.

@@ -8,7 +8,7 @@
   },
   "bb": {
     "name": "Omgovich PR Linker",
-    "description": "Each thread's pull request: detected from its branch, or attached by hand. Read by Omgovich Sidebar, Diffs and PR Review.",
+    "description": "Remembers which pull request each thread is about: found from its branch, or attached by hand. Sidebar, Diffs and PR Review show it.",
     "branding": {
       "icon": "GitPullRequest"
     },
