@@ -1,0 +1,61 @@
+# Third-party notices
+
+Parts of `src/` in this plugin are derived from **bb-plugin-thread-inbox**
+(https://github.com/wy3z/bb-plugin-thread-inbox), used with permission under
+the MIT License. That project's checkout was treated as read-only; only source
+was copied and adapted into this plugin's own package.
+
+The following files contain adapted source from that project:
+
+- `src/lifecycle.ts` (the shelf vocabulary)
+- `src/inbox.ts`
+- `src/forest.ts`
+- `src/thread-order.ts`
+- `src/useThreadOrders.ts`
+- `src/useReorderDrag.ts`
+- `src/relative-time.ts`
+- `src/StatusGlyph.tsx` (the status predicates)
+- `src/StatusSlot.tsx`
+- `src/InlineThreadTitle.tsx`
+- `src/RowContextMenu.tsx`
+- `src/ThreadTree.tsx`
+- `src/AnimatedList.tsx`
+- `src/CursorSidebar.tsx`
+- `src/settle-shortcut.ts` (the protected-target guard)
+- `src/server.ts` (RPC contract and order store)
+
+## AutoAnimate
+
+`src/vendor/auto-animate/` contains the installed AutoAnimate 0.9.0 runtime
+and types copied from Inbox Sidebar's existing dependency. It is distributed
+under the MIT License, copyright 2022 FormKit Inc.; the full license is in
+`src/vendor/auto-animate/LICENSE`. No package installation was needed.
+
+It carries one local patch, marked `LOCAL PATCH (not upstream)` in
+`index.mjs`: a move that interrupts an animation in flight continues from the
+position on screen instead of snapping back to the cancelled animation's
+target. Without it, a reorder drag that keeps crossing rows visibly rewinds
+before each move. Re-apply the patch if this file is ever refreshed from
+upstream.
+
+## Inbox Sidebar MIT License
+
+Copyright (c) 2026 Michael Yong
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

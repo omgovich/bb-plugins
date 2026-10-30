@@ -1,0 +1,144 @@
+{
+  "$schema": "https://getbb.app/schemas/marketplace.schema.json",
+  "schemaVersion": 1,
+  "name": "omgovich",
+  "displayName": "Omgovich",
+  "description": "Vlad Shilov's bb plugins: a thread sidebar, PR linking and stack diffs, PR reviews, usage bars and agent reconnect.",
+  "plugins": [
+    {
+      "id": "cursor-sidebar",
+      "displayName": "Omgovich Sidebar",
+      "description": "Thread list with project trees, a project/PR/branch subline, live activity, pins and folders. A fork of Cursor Sidebar.",
+      "icon": "PanelLeft",
+      "tags": [
+        "sidebar",
+        "threads"
+      ],
+      "author": {
+        "name": "Vlad Shilov",
+        "github": "omgovich",
+        "url": "https://github.com/omgovich"
+      },
+      "source": {
+        "git": {
+          "url": "https://github.com/omgovich/bb-plugins.git",
+          "subdir": "plugins/cursor-sidebar",
+          "ref": "main"
+        }
+      }
+    },
+    {
+      "id": "pr-link",
+      "displayName": "Omgovich PR Linker",
+      "description": "Each thread's pull request: detected from its branch, or attached by hand. Read by Omgovich Sidebar, Diffs and PR Review.",
+      "icon": "GitPullRequest",
+      "tags": [
+        "github",
+        "pull-requests"
+      ],
+      "author": {
+        "name": "Vlad Shilov",
+        "github": "omgovich",
+        "url": "https://github.com/omgovich"
+      },
+      "source": {
+        "git": {
+          "url": "https://github.com/omgovich/bb-plugins.git",
+          "subdir": "plugins/pr-link",
+          "ref": "main"
+        }
+      }
+    },
+    {
+      "id": "pr-stack-diff",
+      "displayName": "Omgovich Diffs",
+      "description": "Review every PR of a thread's stack in the side panel, each against its parent, with Viewed marks and line notes to the agent.",
+      "icon": "FileDiff",
+      "tags": [
+        "github",
+        "pull-requests",
+        "diff",
+        "review"
+      ],
+      "author": {
+        "name": "Vlad Shilov",
+        "github": "omgovich",
+        "url": "https://github.com/omgovich"
+      },
+      "source": {
+        "git": {
+          "url": "https://github.com/omgovich/bb-plugins.git",
+          "subdir": "plugins/pr-stack-diff",
+          "ref": "main"
+        }
+      }
+    },
+    {
+      "id": "review-pr",
+      "displayName": "Omgovich PR Review",
+      "description": "Review a GitHub pull request in its own worktree thread.",
+      "icon": "ScanEye",
+      "tags": [
+        "github",
+        "pull-requests",
+        "review"
+      ],
+      "author": {
+        "name": "Vlad Shilov",
+        "github": "omgovich",
+        "url": "https://github.com/omgovich"
+      },
+      "source": {
+        "git": {
+          "url": "https://github.com/omgovich/bb-plugins.git",
+          "subdir": "plugins/review-pr",
+          "ref": "main"
+        }
+      }
+    },
+    {
+      "id": "usage-bars",
+      "displayName": "Omgovich Usage Bars",
+      "description": "Claude and Codex usage limits above the sidebar footer.",
+      "icon": "ChartColumn",
+      "tags": [
+        "usage",
+        "sidebar"
+      ],
+      "author": {
+        "name": "Vlad Shilov",
+        "github": "omgovich",
+        "url": "https://github.com/omgovich"
+      },
+      "source": {
+        "git": {
+          "url": "https://github.com/omgovich/bb-plugins.git",
+          "subdir": "plugins/usage-bars",
+          "ref": "main"
+        }
+      }
+    },
+    {
+      "id": "restart-session",
+      "displayName": "Omgovich Reconnect Agent",
+      "description": "A Reconnect button in the thread header: frees the agent's process, keeps the history, and reconnects MCP servers on the next message.",
+      "icon": "PlugZap",
+      "tags": [
+        "threads",
+        "mcp"
+      ],
+      "author": {
+        "name": "Vlad Shilov",
+        "github": "omgovich",
+        "url": "https://github.com/omgovich"
+      },
+      "source": {
+        "git": {
+          "url": "https://github.com/omgovich/bb-plugins.git",
+          "subdir": "plugins/restart-session",
+          "ref": "main"
+        }
+      }
+    }
+  ]
+}

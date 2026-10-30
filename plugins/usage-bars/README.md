@@ -1,0 +1,20 @@
+# Omgovich Usage Bars
+
+Remaining Claude and Codex usage, as bars above the bb sidebar footer.
+
+<img src="docs/bars.png" width="272" alt="Codex 7d bar and two pooled Claude accounts with 7d and 5h bars">
+
+- One bar per provider you are logged in to, from bb's cached
+  `system.usageLimits`: the weekly window, plus Claude's 5-hour window.
+- With bb's Account Pooler on, one bar per pooled account instead, labelled
+  with the account; the pool replaces the local login for the providers it
+  serves.
+- All percentages mean **remaining**. Yellow at 20% or less, red at 5% or
+  less. Hover a bar for the time until reset and the exact reset date.
+
+It refreshes every five minutes and when the window gets focus, from cached
+measurements only: no credentials, no direct provider requests.
+
+bb has no permanent slot for sidebar content, so the bars mount into
+`[data-testid="app-sidebar-body"]`. A bb layout change may require updating
+that selector.

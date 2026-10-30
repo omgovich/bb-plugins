@@ -1,0 +1,33 @@
+{
+  "name": "bb-plugin-usage-bars",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "bb": ">=0.47",
+    "bbPluginSdk": ">=0.6.79"
+  },
+  "bb": {
+    "name": "Omgovich Usage Bars",
+    "description": "Claude and Codex usage limits above the sidebar footer.",
+    "branding": {
+      "icon": "ChartColumn"
+    },
+    "server": "./server.ts",
+    "app": "./app.tsx"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "0.6.79",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "clsx": "^2.1.1",
+    "hono": "^4.13.14",
+    "tailwind-merge": "^3.3.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  }
+}
