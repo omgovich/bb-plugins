@@ -197,7 +197,9 @@ export const FileBlock = memo(function FileBlock({
               Binary file
             </div>
           ) : rendered ? (
-            <div ref={body} className="overflow-x-auto">
+            // bb closes the side panel on a sideways swipe on phones; a swipe
+            // that starts on the code scrolls it instead.
+            <div ref={body} className="overflow-x-auto" data-no-secondary-panel-swipe="">
               <DiffLines
                 patch={file.patch}
                 onSend={(target, text) => onSend(file, target, text)}
