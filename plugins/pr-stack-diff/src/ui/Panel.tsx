@@ -39,6 +39,8 @@ interface StackState {
 
 /** How often the open panel re-reads the stack to pick up commits and pushes. */
 const POLL_MS = 15_000;
+/** Below this header width the GitHub/Local switch shows icons only. */
+const COMPACT_HEADER_PX = 480;
 
 export function Panel({ threadId }: { threadId: string }) {
   const rpc = useRpc<typeof prStackDiffRpcContract>();
@@ -238,6 +240,17 @@ function Header({
   onAttach: (pr: string) => Promise<void>;
 }) {
   const attachId = useId();
+  // A narrow panel (a phone, a squeezed split) keeps the source switch to its
+  // icons, so the PR picker keeps room for the PR's title.
+  const row = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const element = row.current;
+    if (element === null) return;
+    const observer = new ResizeObserver(([entry]) => setCompact((entry?.contentRect.width ?? 0) < COMPACT_HEADER_PX));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const portalScope = usePortalScopeProps();
   const [attaching, setAttaching] = useState(false);
   const [value, setValue] = useState("");
@@ -252,7 +265,7 @@ function Header({
       : null;
   return (
     <div className="shrink-0 border-b border-border bg-background">
-      <div className="flex items-center gap-1.5 px-2 py-1.5">
+      <div ref={row} className="flex items-center gap-1.5 px-2 py-1.5">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button
@@ -396,13 +409,15 @@ function Header({
               aria-pressed={source === item}
               disabled={item === "github" ? !githubAvailable : !localAvailable}
               onClick={() => onSource(item)}
+              aria-label={item === "github" ? "GitHub" : "Local"}
               title={
                 item === "local"
                   ? "Committed changes in the local branch"
                   : "Changes published to GitHub"
               }
               className={cn(
-                "inline-flex h-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2.5 disabled:opacity-40",
+                "inline-flex h-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md disabled:opacity-40",
+                compact ? "px-2" : "px-2.5",
                 focusRing,
                 source === item
                   ? "bg-state-active text-foreground"
@@ -413,7 +428,7 @@ function Header({
                 name={item === "github" ? "Github" : "Laptop"}
                 className="size-3.5 shrink-0"
               />
-              {item === "github" ? "GitHub" : "Local"}
+              {compact ? null : item === "github" ? "GitHub" : "Local"}
             </button>
           ))}
         </div>
