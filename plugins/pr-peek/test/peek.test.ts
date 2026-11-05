@@ -30,3 +30,11 @@ describe("toPeek", () => {
     expect(toPeek({ ...base, state: "CLOSED" }).state).toBe("closed");
   });
 });
+
+describe("peekError", async () => {
+  const { peekError } = await import("../src/server");
+  it("says what is wrong", () => {
+    expect(peekError({ stderr: "GraphQL: Could not resolve to a Repository with the name 'a/b'." })).toMatch(/No access/);
+    expect(peekError({ stderr: "To get started with GitHub CLI, please run:  gh auth login" })).toMatch(/not logged in/);
+  });
+});

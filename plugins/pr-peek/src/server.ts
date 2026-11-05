@@ -21,6 +21,16 @@ interface GhPr {
   changedFiles: number;
 }
 
+/** gh's failure, in words that say what to do. */
+export function peekError(error: unknown): string {
+  const text = errorText(error);
+  if (/could not resolve to a (repository|pullrequest)|not found|404/i.test(text))
+    return "No access to this repository through your gh login, or the PR does not exist.";
+  if (/auth|token|log ?in|401|403/i.test(text)) return "gh is not logged in: run gh auth login.";
+  if (/gh is not installed/i.test(text)) return "gh is not installed on the machine that runs bb.";
+  return text.split("\n")[0]!;
+}
+
 export function toPeek(pr: GhPr): PrPeek {
   return {
     title: pr.title,
@@ -38,16 +48,20 @@ export default async function plugin(bb: BbPluginApi) {
   async function peek(key: string): Promise<PeekResult> {
     const ref = parsePrKey(key);
     if (ref === null) return { pr: null, error: "Not a pull request." };
-    const { value, error } = await cache.get(key, async () =>
-      toPeek(JSON.parse(await gh(["pr", "view", String(ref.number), "-R", ref.repo, "--json", FIELDS])) as GhPr),
-    );
+    const { value, error } = await cache.get(key, async () => {
+      try {
+        return toPeek(JSON.parse(await gh(["pr", "view", String(ref.number), "-R", ref.repo, "--json", FIELDS])) as GhPr);
+      } catch (e) {
+        throw new Error(peekError(e));
+      }
+    });
     return { pr: value, error: value === null ? error : null };
   }
 
   bb.rpc.register(prPeekRpcContract, {
     pullRequests: async ({ keys }) => {
       const entries = await Promise.all(
-        keys.map(async (key) => [key, await peek(key).catch((e) => ({ pr: null, error: errorText(e) }))] as const),
+        keys.map(async (key) => [key, await peek(key).catch((e) => ({ pr: null, error: peekError(e) }))] as const),
       );
       return Object.fromEntries(entries);
     },
