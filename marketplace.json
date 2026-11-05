@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "name": "omgovich",
   "displayName": "Omgovich",
-  "description": "Vlad Shilov's bb plugins: a thread sidebar, PR linking and stack diffs, PR reviews, usage bars and agent reconnect.",
+  "description": "Vlad Shilov's bb plugins: a thread sidebar, PR linking, peeks and stack diffs, PR reviews, usage bars and agent reconnect.",
   "plugins": [
     {
       "id": "cursor-sidebar",
@@ -45,6 +45,28 @@
         "git": {
           "url": "https://github.com/omgovich/bb-plugins.git",
           "subdir": "plugins/pr-link",
+          "ref": "main"
+        }
+      }
+    },
+    {
+      "id": "pr-peek",
+      "displayName": "Omgovich PR Peek",
+      "description": "Hover a link to a GitHub pull request anywhere in bb to see its title, state, author and size.",
+      "icon": "Eye",
+      "tags": [
+        "github",
+        "pull-requests"
+      ],
+      "author": {
+        "name": "Vlad Shilov",
+        "github": "omgovich",
+        "url": "https://github.com/omgovich"
+      },
+      "source": {
+        "git": {
+          "url": "https://github.com/omgovich/bb-plugins.git",
+          "subdir": "plugins/pr-peek",
           "ref": "main"
         }
       }

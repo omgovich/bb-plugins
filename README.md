@@ -11,6 +11,7 @@ folder under `plugins/` and installs on its own.
 | --- | --- |
 | [Omgovich Sidebar](plugins/cursor-sidebar) | A replacement for bb's thread list. Each thread shows its project icon, PR and branch, a live line of what the agent is doing, and whether it is working or unread; child threads nest under their parent |
 | [Omgovich PR Linker](plugins/pr-link) | Remembers which pull request each thread is about. It finds the PR from the thread's branch, or you attach one by hand when the branch does not tell (a review thread, someone else's PR). Sidebar, Diffs and PR Review show that PR |
+| [Omgovich PR Peek](plugins/pr-peek) | Hover a link to a GitHub PR anywhere in bb and see its title, state, author and size in a tooltip |
 | [Omgovich Diffs](plugins/pr-stack-diff) | A PR Diffs tab beside the thread for reviewing the agent's work: every PR of a stack, each against its parent, with Viewed marks and line comments sent back to the agent |
 | [Omgovich PR Review](plugins/review-pr) | Paste a PR link and get a new thread that checks the PR out in its own worktree and has an agent review it |
 | [Omgovich Usage Bars](plugins/usage-bars) | How much of your Claude and Codex limits is left, as bars at the bottom of the sidebar |
@@ -27,7 +28,7 @@ Add the collection to bb once, as a plugin marketplace:
 bb marketplace add git:github.com/omgovich/bb-plugins@main
 ```
 
-The six plugins then show up in bb's plugin store (Settings → Plugins, or
+The plugins then show up in bb's plugin store (Settings → Plugins, or
 `bb plugin search omgovich`) and install by id:
 
 ```sh
@@ -39,6 +40,7 @@ bb plugin install cursor-sidebar@omgovich
 | --- | --- |
 | Omgovich Sidebar | `cursor-sidebar` |
 | Omgovich PR Linker | `pr-link` |
+| Omgovich PR Peek | `pr-peek` |
 | Omgovich Diffs | `pr-stack-diff` |
 | Omgovich PR Review | `review-pr` |
 | Omgovich Usage Bars | `usage-bars` |
@@ -53,7 +55,7 @@ Without the marketplace, install straight from git:
 bb plugin install git:github.com/omgovich/bb-plugins@main --plugin pr-link
 ```
 
-PR Linker, Diffs and PR Review call the GitHub CLI, so `gh` must be installed
+PR Linker, PR Peek, Diffs and PR Review call the GitHub CLI, so `gh` must be installed
 and logged in on the machine that runs bb.
 
 ## Limits

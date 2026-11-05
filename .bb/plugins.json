@@ -3,11 +3,33 @@
   "schemaVersion": 1,
   "name": "omgovich-bb-plugins",
   "plugins": [
-    { "name": "cursor-sidebar", "source": "./plugins/cursor-sidebar" },
-    { "name": "pr-link", "source": "./plugins/pr-link" },
-    { "name": "pr-stack-diff", "source": "./plugins/pr-stack-diff" },
-    { "name": "review-pr", "source": "./plugins/review-pr" },
-    { "name": "usage-bars", "source": "./plugins/usage-bars" },
-    { "name": "restart-session", "source": "./plugins/restart-session" }
+    {
+      "name": "cursor-sidebar",
+      "source": "./plugins/cursor-sidebar"
+    },
+    {
+      "name": "pr-link",
+      "source": "./plugins/pr-link"
+    },
+    {
+      "name": "pr-peek",
+      "source": "./plugins/pr-peek"
+    },
+    {
+      "name": "pr-stack-diff",
+      "source": "./plugins/pr-stack-diff"
+    },
+    {
+      "name": "review-pr",
+      "source": "./plugins/review-pr"
+    },
+    {
+      "name": "usage-bars",
+      "source": "./plugins/usage-bars"
+    },
+    {
+      "name": "restart-session",
+      "source": "./plugins/restart-session"
+    }
   ]
 }
