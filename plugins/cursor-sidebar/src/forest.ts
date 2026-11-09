@@ -344,6 +344,7 @@ export function buildPooledOrdinarySection(
   homes: readonly ProjectSectionData[],
   id: string,
   name: string,
+  ordering?: SiblingOrdering,
 ): ProjectSectionData {
   const members: PluginSidebarThread[] = [];
   const parent = new Map<string, string | null>();
@@ -372,6 +373,12 @@ export function buildPooledOrdinarySection(
       settled.push(thread);
     }
     for (const [scope, ids] of home.scopeIds) scopeIds.set(scope, ids);
+  }
+  // Each home is already in order on its own; pooled together they must be
+  // ordered again, or a newer thread from a later home trails an older one.
+  if (ordering) {
+    active.sort(ordering.compare);
+    settled.sort(ordering.compare);
   }
   return {
     id,

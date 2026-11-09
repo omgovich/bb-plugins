@@ -513,8 +513,9 @@ export function CursorSidebar({ activeThreadId, onNavigate }: PluginThreadListPr
         sections,
         STANDALONE,
         "Chats",
+        siblingOrdering,
       ),
-    [sections],
+    [sections, siblingOrdering],
   );
   const pooledSectionRef = useRef(pooledSection);
   pooledSectionRef.current = pooledSection;
