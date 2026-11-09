@@ -13,7 +13,6 @@ import {
   useSdk,
 } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
-import { cn } from "@/lib/utils";
 
 const POLL_MS = 5 * 60_000;
 const SIDEBAR_BODY_SELECTOR = '[data-testid="app-sidebar-body"]';
@@ -222,11 +221,15 @@ function formatReset(resetsAt: string | null): string | null {
   return rest === 0 ? `${days}d` : `${days}d ${rest}h`;
 }
 
-function barTone(left: number): string {
-  if (left <= 5) return "bg-destructive/70";
-  if (left <= 20) return "bg-warning/70";
-  return "bg-sidebar-foreground/30";
+// Bar colours are inline, not Tailwind classes: the labels share classes with
+// bb's own stylesheet, but these would vanish with the plugin's, leaving labels
+// over empty space.
+function barColor(left: number): string {
+  if (left <= 5) return "color-mix(in oklab, var(--destructive) 70%, transparent)";
+  if (left <= 20) return "color-mix(in oklab, var(--warning) 70%, transparent)";
+  return "color-mix(in oklab, var(--sidebar-foreground) 30%, transparent)";
 }
+const TRACK_COLOR = "color-mix(in oklab, var(--sidebar-foreground) 6%, transparent)";
 
 function remaining(window: UsageWindow): number {
   return 100 - Math.min(100, Math.max(0, Math.round(window.usedPercent)));
@@ -253,11 +256,12 @@ function LimitTrack({ window, name, label }: {
       aria-valuemax={100}
       aria-valuenow={left}
       title={limitTitle(name, label, window)}
-      className="min-h-0 flex-1 overflow-hidden bg-sidebar-foreground/[0.06]"
+      className="min-h-0 flex-1 overflow-hidden"
+      style={{ backgroundColor: TRACK_COLOR }}
     >
       <div
-        className={cn("h-full transition-[width]", barTone(left))}
-        style={{ width: `${left}%` }}
+        className="h-full transition-[width]"
+        style={{ width: `${left}%`, backgroundColor: barColor(left) }}
       />
     </div>
   );
@@ -298,7 +302,7 @@ function UsageBar({ bar, provider, pad }: {
               </span>
             ) : null}
           </div>
-          <div className="flex h-1.5 overflow-hidden rounded-full">
+          <div className="flex overflow-hidden" style={{ height: 6, borderRadius: 9999 }}>
             <LimitTrack window={window} name={name} label={label} />
           </div>
         </div>
