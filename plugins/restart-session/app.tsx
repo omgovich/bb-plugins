@@ -55,10 +55,11 @@ function RestartButton({ threadId }: { threadId: string }) {
       aria-label="Reconnect the agent"
       disabled={restarting}
       onClick={() => void restart()}
-      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-card px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50 sm:px-2.5"
     >
       <RestartIcon spinning={restarting} />
-      Reconnect
+      {/* Phones keep the header to the icon; the tooltip and label still name it. */}
+      <span className="hidden sm:inline">Reconnect</span>
     </button>
   );
 }
