@@ -30,6 +30,10 @@
     {
       "name": "restart-session",
       "source": "./plugins/restart-session"
+    },
+    {
+      "name": "host-battery",
+      "source": "./plugins/host-battery"
     }
   ]
 }

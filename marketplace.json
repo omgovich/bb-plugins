@@ -161,6 +161,28 @@
           "ref": "main"
         }
       }
+    },
+    {
+      "id": "host-battery",
+      "displayName": "Omgovich Host Battery",
+      "description": "See the charge of the Mac that runs bb from your phone, in the thread header, so the agents don't die with its battery.",
+      "icon": "Battery",
+      "tags": [
+        "mobile",
+        "threads"
+      ],
+      "author": {
+        "name": "Vlad Shilov",
+        "github": "omgovich",
+        "url": "https://github.com/omgovich"
+      },
+      "source": {
+        "git": {
+          "url": "https://github.com/omgovich/bb-plugins.git",
+          "subdir": "plugins/host-battery",
+          "ref": "main"
+        }
+      }
     }
   ]
 }

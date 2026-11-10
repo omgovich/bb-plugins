@@ -15,6 +15,7 @@ folder under `plugins/` and installs on its own.
 | [Omgovich Diffs](plugins/pr-stack-diff) | A PR Diffs tab beside the thread for reviewing the agent's work: every PR of a stack, each against its parent, with Viewed marks and line comments sent back to the agent |
 | [Omgovich PR Review](plugins/review-pr) | Paste a PR link and get a new thread that checks the PR out in its own worktree and has an agent review it |
 | [Omgovich Usage Bars](plugins/usage-bars) | How much of your Claude and Codex limits is left, as bars at the bottom of the sidebar |
+| [Omgovich Host Battery](plugins/host-battery) | On a phone, the charge of the Mac that runs bb in the thread header, so the agents don't die with its battery |
 | [Omgovich Reconnect Agent](plugins/restart-session) | A Reconnect button in the thread header: restarts the agent's process without losing the conversation, so MCP tools come back after you re-authorize a server |
 
 Sidebar, Diffs and PR Review show the thread's PR through PR Linker;
@@ -45,6 +46,7 @@ bb plugin install cursor-sidebar@omgovich
 | Omgovich PR Review | `review-pr` |
 | Omgovich Usage Bars | `usage-bars` |
 | Omgovich Reconnect Agent | `restart-session` |
+| Omgovich Host Battery | `host-battery` |
 
 Each one tracks `main`: `bb plugin outdated` shows new commits and
 `bb plugin update <id>` applies them. bb builds a plugin on install.
