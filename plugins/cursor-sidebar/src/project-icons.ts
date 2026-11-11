@@ -25,7 +25,7 @@ export const PROJECT_ICON_NAMES: readonly IconName[] = [
   "ChartColumn", "ChartLine", "Table", "Atom", "Beaker", "Microscope", "Brain",
   "Palette", "Brush", "Camera", "Image", "Music", "MagicWand",
   "Briefcase", "Money", "Calendar", "ListTodo", "GridView", "Megaphone", "Chat", "Mail", "Sent",
-  "Target", "Flag", "Star", "Crown", "Banana", "PowerSocket", "Plug", "Sparkle", "AiMagic", "Bot", "Heart", "Moon", "Smile",
+  "Target", "Flag", "Star", "Crown", "Triangle", "Banana", "PowerSocket", "Plug", "Sparkle", "AiMagic", "Bot", "Heart", "Moon", "Smile",
 ];
 
 /** Set view of the catalog, for validating a stored glyph name. */

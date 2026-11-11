@@ -310,6 +310,7 @@ export const EXTENDED_ICON_NAMES = [
   "Bookmark",
   "Heart",
   "Crown",
+  "Triangle",
   "Medal",
   "Award",
   "Trophy",

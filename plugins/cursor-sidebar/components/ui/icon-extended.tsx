@@ -1258,6 +1258,7 @@ import {
   AiMagicIcon,
   OrigamiIcon,
   BlueprintIcon,
+  TriangleIcon,
 } from "@hugeicons/core-free-icons";
 import { type ExtendedIconMap, registerExtendedIcons } from "./icon-registry";
 
@@ -1654,6 +1655,7 @@ export const EXTENDED_ICON_MAP: ExtendedIconMap = {
   Bookmark: BookmarkIcon,
   Heart: HeartIcon,
   Crown: CrownIcon,
+  Triangle: TriangleIcon,
   Medal: MedalIcon,
   Award: AwardIcon,
   Trophy: TrophyIcon,
