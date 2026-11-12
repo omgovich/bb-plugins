@@ -10,9 +10,8 @@ Remaining Claude and Codex usage, as bars above the bb sidebar footer.
   labelled **Fable 7d**. Rows with three bars drop the reset time from the
   label; hover for it.
 - A reading sometimes arrives without the Fable limit. If the plugin saw the
-  limit before, the bar keeps the last reading, dimmed, with its time in the
-  tooltip, for up to six hours or until the limit resets. Meanwhile the
-  plugin reads again every 30 seconds, up to four times.
+  limit before, the bar keeps the last reading until the limit resets, and
+  the plugin reads again every 30 seconds, up to four times.
 - With bb's Account Pooler on, one bar per pooled account instead, labelled
   with the account; the pool replaces the local login for the providers it
   serves.

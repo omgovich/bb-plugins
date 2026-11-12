@@ -40,8 +40,8 @@ interface Limit {
   /** A model-scoped limit's model, shown before the label. */
   model?: string;
   window: UsageWindow;
-  /** Set when the latest reading lacked this limit: when it was last seen. */
-  seenAt?: number;
+  /** The latest reading lacked this limit; this is the last one seen. */
+  remembered?: boolean;
 }
 
 // Account Pooler publishes per-account usage through provider-usage.v1.
@@ -162,18 +162,14 @@ async function loadPoolBars(
 // sometimes arrives without them. A model limit that was there a moment ago
 // has not gone away, so keep the last one seen until it resets.
 const REMEMBER_KEY = "usage-bars:model-limits";
-const REMEMBER_MS = 6 * 60 * 60_000;
 
 const rememberedSchema = z.record(
   z.string(),
   z.object({
-    seenAt: z.number(),
-    limit: z.object({
-      key: z.string(),
-      label: z.string(),
-      model: z.string(),
-      window: windowSchema,
-    }),
+    key: z.string(),
+    label: z.string(),
+    model: z.string(),
+    window: windowSchema,
   }),
 );
 
@@ -188,31 +184,21 @@ function readRemembered(): z.infer<typeof rememberedSchema> {
 }
 
 function withRememberedLimits(bars: ProviderBar[]): ProviderBar[] {
-  const now = Date.now();
   const remembered = readRemembered();
   const next = bars.map((bar) => {
     const scoped = bar.limits.find((limit) => limit.model);
     if (scoped?.model) {
-      remembered[bar.key] = {
-        limit: { ...scoped, model: scoped.model },
-        seenAt: now,
-      };
+      remembered[bar.key] = { ...scoped, model: scoped.model };
       return bar;
     }
     const kept = remembered[bar.key];
     if (!kept) return bar;
-    const reset = kept.limit.window.resetsAt;
-    if (
-      now - kept.seenAt > REMEMBER_MS ||
-      (reset !== null && Date.parse(reset) <= now)
-    ) {
+    const reset = kept.window.resetsAt;
+    if (reset !== null && Date.parse(reset) <= Date.now()) {
       delete remembered[bar.key];
       return bar;
     }
-    return {
-      ...bar,
-      limits: [...bar.limits, { ...kept.limit, seenAt: kept.seenAt }],
-    };
+    return { ...bar, limits: [...bar.limits, { ...kept, remembered: true }] };
   });
   try {
     window.localStorage.setItem(REMEMBER_KEY, JSON.stringify(remembered));
@@ -241,7 +227,7 @@ const MODEL_LIMIT_RETRY_MS = 30_000;
 const MODEL_LIMIT_RETRIES = 4;
 
 function hasRememberedLimit(bar: ProviderBar): boolean {
-  return bar.limits.some((limit) => limit.seenAt !== undefined);
+  return bar.limits.some((limit) => limit.remembered);
 }
 
 function useWeeklyUsage(): ProviderBar[] | null {
@@ -378,39 +364,28 @@ function LimitTrack({ window, name, label }: {
   );
 }
 
-/** How much wider a column with a model name is than a plain one. */
+/** How much wider a cell with a model name is than a plain one. */
 const WIDE_GROW = 1.5;
 
-function UsageBar({ bar, provider, offset, padding, compact, wide }: {
+function UsageBar({ bar, provider, padding, compact }: {
   bar: ProviderBar;
   provider: ProviderInfo | undefined;
-  /** Column of this bar's first cell in its row. */
-  offset: number;
-  /** Empty cells after the bar, so columns line up across rows. */
+  /** Empty cells after the bar, so a short row keeps the cell width. */
   padding: number;
   /** Narrow cells: drop the reset time, which stays in the tooltip. */
   compact: boolean;
-  /** Columns that hold a model-scoped limit in some row. */
-  wide: ReadonlySet<number>;
 }) {
-  const grow = (cell: number) => ({
-    flexGrow: wide.has(offset + cell) ? WIDE_GROW : 1,
-  });
   const providerName = provider?.displayName ?? bar.providerId;
   const name = bar.account ? `${providerName} (${bar.account})` : providerName;
   return (
     <>
-      {bar.limits.map(({ key, label, model, window, seenAt }, cell) => {
-        // A remembered limit is dimmed and says how old its reading is.
-        const title = (model ? `${model} ${label}` : label) +
-          (seenAt === undefined
-            ? ""
-            : ` · as of ${new Date(seenAt).toLocaleTimeString()}`);
+      {bar.limits.map(({ key, label, model, window }) => {
+        const title = model ? `${model} ${label}` : label;
         return (
           <div
             key={key}
             className="flex min-w-0 flex-1 basis-0 flex-col gap-1"
-            style={{ ...grow(cell), opacity: seenAt === undefined ? 1 : 0.6 }}
+            style={model ? { flexGrow: WIDE_GROW } : undefined}
             title={limitTitle(name, title, window)}
           >
             <div className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-sidebar-foreground">
@@ -443,11 +418,7 @@ function UsageBar({ bar, provider, offset, padding, compact, wide }: {
         );
       })}
       {Array.from({ length: padding }, (_, i) => (
-        <div
-          key={`pad-${i}`}
-          className="min-w-0 flex-1 basis-0"
-          style={grow(bar.limits.length + i)}
-        />
+        <div key={`pad-${i}`} className="min-w-0 flex-1 basis-0" />
       ))}
     </>
   );
@@ -469,43 +440,25 @@ function UsageBarsOverlay() {
     ? [local, ...bars.filter((bar) => bar.account).map((bar) => [bar])]
     : bars.map((bar) => [bar]);
   const rowLimits = rows.map((row) => row.flatMap((bar) => bar.limits));
-  // Every row has the same number of cells, so the columns line up.
+  // Every row has the same number of cells, so a short row keeps the cell width.
   const cells = Math.max(2, ...rowLimits.map((limits) => limits.length));
   const compact = cells >= MAX_ROW_CELLS;
-  // A model name needs a wider cell; widen its whole column in every row.
-  const wide = new Set<number>();
-  for (const limits of rowLimits) {
-    limits.forEach((limit, column) => {
-      if (limit.model) wide.add(column);
-    });
-  }
   return createPortal(
     <div className="flex flex-col gap-1.5 px-3 pb-2 pt-2">
-      {rows.map((row, r) => {
-        let offset = 0;
-        return (
-          <div key={row.map((bar) => bar.key).join()} className="flex gap-2">
-            {row.map((bar, i) => {
-              const start = offset;
-              offset += bar.limits.length;
-              return (
-                <UsageBar
-                  key={bar.key}
-                  bar={bar}
-                  provider={providers.find((p) => p.id === bar.providerId)}
-                  offset={start}
-                  // The row's last bar carries its padding.
-                  padding={i === row.length - 1
-                    ? cells - rowLimits[r].length
-                    : 0}
-                  compact={compact}
-                  wide={wide}
-                />
-              );
-            })}
-          </div>
-        );
-      })}
+      {rows.map((row, r) => (
+        <div key={row.map((bar) => bar.key).join()} className="flex gap-2">
+          {row.map((bar, i) => (
+            <UsageBar
+              key={bar.key}
+              bar={bar}
+              provider={providers.find((p) => p.id === bar.providerId)}
+              // The row's last bar carries its padding.
+              padding={i === row.length - 1 ? cells - rowLimits[r].length : 0}
+              compact={compact}
+            />
+          ))}
+        </div>
+      ))}
     </div>,
     mount,
   );
