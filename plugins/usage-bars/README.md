@@ -7,7 +7,7 @@ Remaining Claude and Codex usage, as bars above the bb sidebar footer.
 - One bar per provider you are logged in to, from bb's cached
   `system.usageLimits`: the weekly window, plus Claude's 5-hour window.
 - Claude gets a third bar when the plan has a Fable-only weekly limit,
-  labelled **Fable 7d**. Rows with three bars drop the reset time from the
+  labelled **Fbl 7d**. Rows with three bars drop the reset time from the
   label; hover for it.
 - A reading sometimes arrives without the Fable limit. If the plugin saw the
   limit before, the bar keeps the last reading until the limit resets, and

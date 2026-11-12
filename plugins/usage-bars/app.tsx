@@ -111,7 +111,7 @@ function toBar(
   if (weekly) limits.push({ key: "7d", label: "7d", window: weekly });
   if (fiveHour) limits.push({ key: "5h", label: "5h", window: fiveHour });
   if (fable) {
-    limits.push({ key: "fable", label: "7d", model: "Fable", window: fable });
+    limits.push({ key: "fable", label: "7d", model: "Fbl", window: fable });
   }
   return limits.length > 0 ? { key, providerId, account, limits } : null;
 }
@@ -364,9 +364,6 @@ function LimitTrack({ window, name, label }: {
   );
 }
 
-/** How much wider a cell with a model name is than a plain one. */
-const WIDE_GROW = 1.5;
-
 function UsageBar({ bar, provider, padding, compact }: {
   bar: ProviderBar;
   provider: ProviderInfo | undefined;
@@ -385,7 +382,6 @@ function UsageBar({ bar, provider, padding, compact }: {
           <div
             key={key}
             className="flex min-w-0 flex-1 basis-0 flex-col gap-1"
-            style={model ? { flexGrow: WIDE_GROW } : undefined}
             title={limitTitle(name, title, window)}
           >
             <div className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-sidebar-foreground">
