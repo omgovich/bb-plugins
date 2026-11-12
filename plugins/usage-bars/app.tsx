@@ -30,8 +30,16 @@ interface ProviderBar {
   providerId: string;
   /** Account label, set for Account Pooler accounts. */
   account?: string;
-  window?: UsageWindow;
-  fiveHour?: UsageWindow;
+  limits: Limit[];
+}
+
+interface Limit {
+  key: string;
+  /** Short text beside the icon. */
+  label: string;
+  /** A model-scoped limit's model, shown before the label. */
+  model?: string;
+  window: UsageWindow;
 }
 
 // Account Pooler publishes per-account usage through provider-usage.v1.
@@ -76,19 +84,34 @@ function pickWeekly(windows: readonly UsageWindow[]): UsageWindow | undefined {
   );
 }
 
+/** Claude's weekly window scoped to Fable, when the plan has one. */
+function pickFableWeekly(
+  windows: readonly UsageWindow[],
+): UsageWindow | undefined {
+  return windows.find((w) =>
+    w.kind === "weekly" && !!w.model && /fable/i.test(`${w.model} ${w.label}`)
+  );
+}
+
 function toBar(
   key: string,
   providerId: string,
   windows: readonly UsageWindow[],
   account?: string,
 ): ProviderBar | null {
+  const isClaude = providerId === "claude-code";
   const weekly = pickWeekly(windows);
-  const fiveHour = providerId === "claude-code"
+  const fiveHour = isClaude
     ? windows.find((w) => w.kind === "five-hour" && !w.model)
     : undefined;
-  return weekly || fiveHour
-    ? { key, providerId, account, window: weekly, fiveHour }
-    : null;
+  const fable = isClaude ? pickFableWeekly(windows) : undefined;
+  const limits: Limit[] = [];
+  if (weekly) limits.push({ key: "7d", label: "7d", window: weekly });
+  if (fiveHour) limits.push({ key: "5h", label: "5h", window: fiveHour });
+  if (fable) {
+    limits.push({ key: "fable", label: "7d", model: "Fable", window: fable });
+  }
+  return limits.length > 0 ? { key, providerId, account, limits } : null;
 }
 
 function toBars(response: UsageResponse): ProviderBar[] {
@@ -267,79 +290,130 @@ function LimitTrack({ window, name, label }: {
   );
 }
 
-function UsageBar({ bar, provider, pad }: {
+/** How much wider a column with a model name is than a plain one. */
+const WIDE_GROW = 1.5;
+
+function UsageBar({ bar, provider, offset, padding, compact, wide }: {
   bar: ProviderBar;
   provider: ProviderInfo | undefined;
-  /** Keep an empty cell for a missing window so the bar stays half-width. */
-  pad: boolean;
+  /** Column of this bar's first cell in its row. */
+  offset: number;
+  /** Empty cells after the bar, so columns line up across rows. */
+  padding: number;
+  /** Narrow cells: drop the reset time, which stays in the tooltip. */
+  compact: boolean;
+  /** Columns that hold a model-scoped limit in some row. */
+  wide: ReadonlySet<number>;
 }) {
+  const grow = (cell: number) => ({
+    flexGrow: wide.has(offset + cell) ? WIDE_GROW : 1,
+  });
   const providerName = provider?.displayName ?? bar.providerId;
   const name = bar.account ? `${providerName} (${bar.account})` : providerName;
-  const limits = [
-    { label: "7d", window: bar.window },
-    { label: "5h", window: bar.fiveHour },
-  ];
   return (
     <>
-      {limits.map(({ label, window }) => window ? (
+      {bar.limits.map(({ key, label, model, window }, cell) => {
+        const title = model ? `${model} ${label}` : label;
+        return (
+          <div
+            key={key}
+            className="flex min-w-0 flex-1 basis-0 flex-col gap-1"
+            style={grow(cell)}
+            title={limitTitle(name, title, window)}
+          >
+            <div className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-sidebar-foreground">
+              <ProviderIcon
+                providerKind="agent"
+                provider={provider ?? { id: bar.providerId }}
+                className="size-3 shrink-0"
+                aria-label={name}
+              />
+              {model ? (
+                <span
+                  className="min-w-0 truncate"
+                  style={{ color: "var(--primary)", fontWeight: 600 }}
+                >
+                  {model}
+                </span>
+              ) : null}
+              <span className="shrink-0 text-muted-foreground">{label}</span>
+              <span className="shrink-0 tabular-nums">{remaining(window)}%</span>
+              {!compact && formatReset(window.resetsAt) ? (
+                <span className="ml-auto min-w-0 truncate tabular-nums text-muted-foreground">
+                  {formatReset(window.resetsAt)}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex overflow-hidden" style={{ height: 6, borderRadius: 9999 }}>
+              <LimitTrack window={window} name={name} label={title} />
+            </div>
+          </div>
+        );
+      })}
+      {Array.from({ length: padding }, (_, i) => (
         <div
-          key={label}
-          className="flex min-w-0 flex-1 basis-0 flex-col gap-1"
-          title={limitTitle(name, label, window)}
-        >
-          <div className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-sidebar-foreground">
-            <ProviderIcon
-              providerKind="agent"
-              provider={provider ?? { id: bar.providerId }}
-              className="size-3 shrink-0"
-              aria-label={name}
-            />
-            <span className="shrink-0 text-muted-foreground">{label}</span>
-            <span className="shrink-0 tabular-nums">{remaining(window)}%</span>
-            {formatReset(window.resetsAt) ? (
-              <span className="ml-auto min-w-0 truncate tabular-nums text-muted-foreground">
-                {formatReset(window.resetsAt)}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex overflow-hidden" style={{ height: 6, borderRadius: 9999 }}>
-            <LimitTrack window={window} name={name} label={label} />
-          </div>
-        </div>
-      ) : pad ? (
-        // Keeps weekly bars aligned in the left column across rows.
-        <div key={label} className="min-w-0 flex-1 basis-0" />
-      ) : null)}
+          key={`pad-${i}`}
+          className="min-w-0 flex-1 basis-0"
+          style={grow(bar.limits.length + i)}
+        />
+      ))}
     </>
   );
 }
+
+/** The most cells one row holds before labels stop fitting. */
+const MAX_ROW_CELLS = 3;
 
 function UsageBarsOverlay() {
   const mount = useSidebarMount();
   const bars = useWeeklyUsage();
   const { providers } = experimental_useProviders();
   if (mount === null || bars === null || bars.length === 0) return null;
-  const renderBar = (bar: ProviderBar, pad: boolean) => (
-    <UsageBar
-      key={bar.key}
-      bar={bar}
-      provider={providers.find((p) => p.id === bar.providerId)}
-      pad={pad}
-    />
-  );
-  // Local-login bars share one row; each pooled account gets its own row.
-  const shared = bars.filter((bar) => !bar.account);
-  const accounts = bars.filter((bar) => bar.account);
+  // Local-login bars share one row while they fit; each pooled account, and
+  // each local provider once they no longer fit, gets its own row.
+  const local = bars.filter((bar) => !bar.account);
+  const localCells = local.reduce((n, bar) => n + bar.limits.length, 0);
+  const rows = local.length > 1 && localCells <= MAX_ROW_CELLS
+    ? [local, ...bars.filter((bar) => bar.account).map((bar) => [bar])]
+    : bars.map((bar) => [bar]);
+  const rowLimits = rows.map((row) => row.flatMap((bar) => bar.limits));
+  // Every row has the same number of cells, so the columns line up.
+  const cells = Math.max(2, ...rowLimits.map((limits) => limits.length));
+  const compact = cells >= MAX_ROW_CELLS;
+  // A model name needs a wider cell; widen its whole column in every row.
+  const wide = new Set<number>();
+  for (const limits of rowLimits) {
+    limits.forEach((limit, column) => {
+      if (limit.model) wide.add(column);
+    });
+  }
   return createPortal(
     <div className="flex flex-col gap-1.5 px-3 pb-2 pt-2">
-      {shared.length > 0 ? (
-        <div className="flex gap-2">
-          {shared.map((bar) => renderBar(bar, shared.length === 1))}
-        </div>
-      ) : null}
-      {accounts.map((bar) => (
-        <div key={bar.key} className="flex gap-2">{renderBar(bar, true)}</div>
-      ))}
+      {rows.map((row, r) => {
+        let offset = 0;
+        return (
+          <div key={row.map((bar) => bar.key).join()} className="flex gap-2">
+            {row.map((bar, i) => {
+              const start = offset;
+              offset += bar.limits.length;
+              return (
+                <UsageBar
+                  key={bar.key}
+                  bar={bar}
+                  provider={providers.find((p) => p.id === bar.providerId)}
+                  offset={start}
+                  // The row's last bar carries its padding.
+                  padding={i === row.length - 1
+                    ? cells - rowLimits[r].length
+                    : 0}
+                  compact={compact}
+                  wide={wide}
+                />
+              );
+            })}
+          </div>
+        );
+      })}
     </div>,
     mount,
   );
