@@ -4,7 +4,7 @@
 // BB has no slot for always-visible sidebar content, so an app overlay finds
 // the sidebar body in the DOM and portals the bars into its bottom edge, just
 // above the footer. The footer itself has a fixed height in the desktop app.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   definePluginApp,
@@ -40,6 +40,8 @@ interface Limit {
   /** A model-scoped limit's model, shown before the label. */
   model?: string;
   window: UsageWindow;
+  /** Set when the latest reading lacked this limit: when it was last seen. */
+  seenAt?: number;
 }
 
 // Account Pooler publishes per-account usage through provider-usage.v1.
@@ -156,6 +158,70 @@ async function loadPoolBars(
   return bars.filter((bar): bar is ProviderBar => bar !== null);
 }
 
+// The scoped limits come from an experimental Claude Code API, and a reading
+// sometimes arrives without them. A model limit that was there a moment ago
+// has not gone away, so keep the last one seen until it resets.
+const REMEMBER_KEY = "usage-bars:model-limits";
+const REMEMBER_MS = 6 * 60 * 60_000;
+
+const rememberedSchema = z.record(
+  z.string(),
+  z.object({
+    seenAt: z.number(),
+    limit: z.object({
+      key: z.string(),
+      label: z.string(),
+      model: z.string(),
+      window: windowSchema,
+    }),
+  }),
+);
+
+function readRemembered(): z.infer<typeof rememberedSchema> {
+  try {
+    return rememberedSchema.parse(
+      JSON.parse(window.localStorage.getItem(REMEMBER_KEY) ?? "{}"),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function withRememberedLimits(bars: ProviderBar[]): ProviderBar[] {
+  const now = Date.now();
+  const remembered = readRemembered();
+  const next = bars.map((bar) => {
+    const scoped = bar.limits.find((limit) => limit.model);
+    if (scoped?.model) {
+      remembered[bar.key] = {
+        limit: { ...scoped, model: scoped.model },
+        seenAt: now,
+      };
+      return bar;
+    }
+    const kept = remembered[bar.key];
+    if (!kept) return bar;
+    const reset = kept.limit.window.resetsAt;
+    if (
+      now - kept.seenAt > REMEMBER_MS ||
+      (reset !== null && Date.parse(reset) <= now)
+    ) {
+      delete remembered[bar.key];
+      return bar;
+    }
+    return {
+      ...bar,
+      limits: [...bar.limits, { ...kept.limit, seenAt: kept.seenAt }],
+    };
+  });
+  try {
+    window.localStorage.setItem(REMEMBER_KEY, JSON.stringify(remembered));
+  } catch {
+    // Without storage the limit is only remembered until the next reading.
+  }
+  return next;
+}
+
 async function loadBars(sdk: Sdk, signal?: AbortSignal): Promise<ProviderBar[]> {
   const [local, pool] = await Promise.all([
     sdk.system.usageLimits({ signal }).then(toBars),
@@ -168,31 +234,55 @@ async function loadBars(sdk: Sdk, signal?: AbortSignal): Promise<ProviderBar[]> 
   return [...local.filter((bar) => !pooled.has(bar.providerId)), ...pool];
 }
 
+// Claude Code serves the same usage reading for a while, with or without the
+// scoped limits, so an immediate re-read repeats a reading that lacks them.
+// Re-read a few times, spaced out, until a reading has them.
+const MODEL_LIMIT_RETRY_MS = 30_000;
+const MODEL_LIMIT_RETRIES = 4;
+
+/** A Claude bar whose model limit is missing or only remembered. */
+function lacksFreshModelLimit(bar: ProviderBar): boolean {
+  return bar.providerId === "claude-code" &&
+    !bar.limits.some((limit) => limit.model && limit.seenAt === undefined);
+}
+
 function useWeeklyUsage(): ProviderBar[] | null {
   const sdk = useSdk();
   const [bars, setBars] = useState<ProviderBar[] | null>(null);
-  const load = useCallback(
-    (signal?: AbortSignal) => {
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    let retryTimer: number | undefined;
+    // `retriesLeft` is how many quick re-reads may follow this one.
+    const load = (retriesLeft: number) => {
+      window.clearTimeout(retryTimer);
       loadBars(sdk, signal).then(
-        (next) => { if (!signal?.aborted) setBars(next); },
+        (loaded) => {
+          if (signal.aborted) return;
+          const next = withRememberedLimits(loaded);
+          setBars(next);
+          if (retriesLeft > 0 && next.some(lacksFreshModelLimit)) {
+            retryTimer = window.setTimeout(
+              () => load(retriesLeft - 1),
+              MODEL_LIMIT_RETRY_MS,
+            );
+          }
+        },
         // Keep the last bars on a failed refresh; the next poll retries.
         () => undefined,
       );
-    },
-    [sdk],
-  );
-  useEffect(() => {
-    const controller = new AbortController();
-    load(controller.signal);
-    const timer = window.setInterval(() => load(controller.signal), POLL_MS);
-    const onFocus = () => load(controller.signal);
-    window.addEventListener("focus", onFocus);
+    };
+    const poll = () => load(MODEL_LIMIT_RETRIES);
+    poll();
+    const timer = window.setInterval(poll, POLL_MS);
+    window.addEventListener("focus", poll);
     return () => {
       controller.abort();
+      window.clearTimeout(retryTimer);
       window.clearInterval(timer);
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", poll);
     };
-  }, [load]);
+  }, [sdk]);
   return bars;
 }
 
@@ -312,13 +402,17 @@ function UsageBar({ bar, provider, offset, padding, compact, wide }: {
   const name = bar.account ? `${providerName} (${bar.account})` : providerName;
   return (
     <>
-      {bar.limits.map(({ key, label, model, window }, cell) => {
-        const title = model ? `${model} ${label}` : label;
+      {bar.limits.map(({ key, label, model, window, seenAt }, cell) => {
+        // A remembered limit is dimmed and says how old its reading is.
+        const title = (model ? `${model} ${label}` : label) +
+          (seenAt === undefined
+            ? ""
+            : ` · as of ${new Date(seenAt).toLocaleTimeString()}`);
         return (
           <div
             key={key}
             className="flex min-w-0 flex-1 basis-0 flex-col gap-1"
-            style={grow(cell)}
+            style={{ ...grow(cell), opacity: seenAt === undefined ? 1 : 0.6 }}
             title={limitTitle(name, title, window)}
           >
             <div className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-sidebar-foreground">
