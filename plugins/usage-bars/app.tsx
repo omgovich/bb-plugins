@@ -234,16 +234,14 @@ async function loadBars(sdk: Sdk, signal?: AbortSignal): Promise<ProviderBar[]> 
   return [...local.filter((bar) => !pooled.has(bar.providerId)), ...pool];
 }
 
-// Claude Code serves the same usage reading for a while, with or without the
-// scoped limits, so an immediate re-read repeats a reading that lacks them.
-// Re-read a few times, spaced out, until a reading has them.
+// Claude Code serves the same usage reading for a while, so an immediate
+// re-read repeats one that lacks the scoped limits. While a bar shows a
+// remembered limit, re-read a few times, spaced out.
 const MODEL_LIMIT_RETRY_MS = 30_000;
 const MODEL_LIMIT_RETRIES = 4;
 
-/** A Claude bar whose model limit is missing or only remembered. */
-function lacksFreshModelLimit(bar: ProviderBar): boolean {
-  return bar.providerId === "claude-code" &&
-    !bar.limits.some((limit) => limit.model && limit.seenAt === undefined);
+function hasRememberedLimit(bar: ProviderBar): boolean {
+  return bar.limits.some((limit) => limit.seenAt !== undefined);
 }
 
 function useWeeklyUsage(): ProviderBar[] | null {
@@ -261,7 +259,7 @@ function useWeeklyUsage(): ProviderBar[] | null {
           if (signal.aborted) return;
           const next = withRememberedLimits(loaded);
           setBars(next);
-          if (retriesLeft > 0 && next.some(lacksFreshModelLimit)) {
+          if (retriesLeft > 0 && next.some(hasRememberedLimit)) {
             retryTimer = window.setTimeout(
               () => load(retriesLeft - 1),
               MODEL_LIMIT_RETRY_MS,
