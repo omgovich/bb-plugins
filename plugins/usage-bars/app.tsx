@@ -4,7 +4,7 @@
 // BB has no slot for always-visible sidebar content, so an app overlay finds
 // the sidebar body in the DOM and portals the bars into its bottom edge, just
 // above the footer. The footer itself has a fixed height in the desktop app.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   definePluginApp,
@@ -30,8 +30,18 @@ interface ProviderBar {
   providerId: string;
   /** Account label, set for Account Pooler accounts. */
   account?: string;
-  window?: UsageWindow;
-  fiveHour?: UsageWindow;
+  limits: Limit[];
+}
+
+interface Limit {
+  key: string;
+  /** Short text beside the icon. */
+  label: string;
+  /** A model-scoped limit's model, shown before the label. */
+  model?: string;
+  window: UsageWindow;
+  /** The latest reading lacked this limit; this is the last one seen. */
+  remembered?: boolean;
 }
 
 // Account Pooler publishes per-account usage through provider-usage.v1.
@@ -76,19 +86,34 @@ function pickWeekly(windows: readonly UsageWindow[]): UsageWindow | undefined {
   );
 }
 
+/** Claude's weekly window scoped to Fable, when the plan has one. */
+function pickFableWeekly(
+  windows: readonly UsageWindow[],
+): UsageWindow | undefined {
+  return windows.find((w) =>
+    w.kind === "weekly" && !!w.model && /fable/i.test(`${w.model} ${w.label}`)
+  );
+}
+
 function toBar(
   key: string,
   providerId: string,
   windows: readonly UsageWindow[],
   account?: string,
 ): ProviderBar | null {
+  const isClaude = providerId === "claude-code";
   const weekly = pickWeekly(windows);
-  const fiveHour = providerId === "claude-code"
+  const fiveHour = isClaude
     ? windows.find((w) => w.kind === "five-hour" && !w.model)
     : undefined;
-  return weekly || fiveHour
-    ? { key, providerId, account, window: weekly, fiveHour }
-    : null;
+  const fable = isClaude ? pickFableWeekly(windows) : undefined;
+  const limits: Limit[] = [];
+  if (weekly) limits.push({ key: "7d", label: "7d", window: weekly });
+  if (fiveHour) limits.push({ key: "5h", label: "5h", window: fiveHour });
+  if (fable) {
+    limits.push({ key: "fable", label: "7d", model: "Fbl", window: fable });
+  }
+  return limits.length > 0 ? { key, providerId, account, limits } : null;
 }
 
 function toBars(response: UsageResponse): ProviderBar[] {
@@ -133,6 +158,56 @@ async function loadPoolBars(
   return bars.filter((bar): bar is ProviderBar => bar !== null);
 }
 
+// The scoped limits come from an experimental Claude Code API, and a reading
+// sometimes arrives without them. A model limit that was there a moment ago
+// has not gone away, so keep the last one seen until it resets.
+const REMEMBER_KEY = "usage-bars:model-limits";
+
+const rememberedSchema = z.record(
+  z.string(),
+  z.object({
+    key: z.string(),
+    label: z.string(),
+    model: z.string(),
+    window: windowSchema,
+  }),
+);
+
+function readRemembered(): z.infer<typeof rememberedSchema> {
+  try {
+    return rememberedSchema.parse(
+      JSON.parse(window.localStorage.getItem(REMEMBER_KEY) ?? "{}"),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function withRememberedLimits(bars: ProviderBar[]): ProviderBar[] {
+  const remembered = readRemembered();
+  const next = bars.map((bar) => {
+    const scoped = bar.limits.find((limit) => limit.model);
+    if (scoped?.model) {
+      remembered[bar.key] = { ...scoped, model: scoped.model };
+      return bar;
+    }
+    const kept = remembered[bar.key];
+    if (!kept) return bar;
+    const reset = kept.window.resetsAt;
+    if (reset !== null && Date.parse(reset) <= Date.now()) {
+      delete remembered[bar.key];
+      return bar;
+    }
+    return { ...bar, limits: [...bar.limits, { ...kept, remembered: true }] };
+  });
+  try {
+    window.localStorage.setItem(REMEMBER_KEY, JSON.stringify(remembered));
+  } catch {
+    // Without storage the limit is only remembered until the next reading.
+  }
+  return next;
+}
+
 async function loadBars(sdk: Sdk, signal?: AbortSignal): Promise<ProviderBar[]> {
   const [local, pool] = await Promise.all([
     sdk.system.usageLimits({ signal }).then(toBars),
@@ -145,31 +220,53 @@ async function loadBars(sdk: Sdk, signal?: AbortSignal): Promise<ProviderBar[]> 
   return [...local.filter((bar) => !pooled.has(bar.providerId)), ...pool];
 }
 
+// Claude Code serves the same usage reading for a while, so an immediate
+// re-read repeats one that lacks the scoped limits. While a bar shows a
+// remembered limit, re-read a few times, spaced out.
+const MODEL_LIMIT_RETRY_MS = 30_000;
+const MODEL_LIMIT_RETRIES = 4;
+
+function hasRememberedLimit(bar: ProviderBar): boolean {
+  return bar.limits.some((limit) => limit.remembered);
+}
+
 function useWeeklyUsage(): ProviderBar[] | null {
   const sdk = useSdk();
   const [bars, setBars] = useState<ProviderBar[] | null>(null);
-  const load = useCallback(
-    (signal?: AbortSignal) => {
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    let retryTimer: number | undefined;
+    // `retriesLeft` is how many quick re-reads may follow this one.
+    const load = (retriesLeft: number) => {
+      window.clearTimeout(retryTimer);
       loadBars(sdk, signal).then(
-        (next) => { if (!signal?.aborted) setBars(next); },
+        (loaded) => {
+          if (signal.aborted) return;
+          const next = withRememberedLimits(loaded);
+          setBars(next);
+          if (retriesLeft > 0 && next.some(hasRememberedLimit)) {
+            retryTimer = window.setTimeout(
+              () => load(retriesLeft - 1),
+              MODEL_LIMIT_RETRY_MS,
+            );
+          }
+        },
         // Keep the last bars on a failed refresh; the next poll retries.
         () => undefined,
       );
-    },
-    [sdk],
-  );
-  useEffect(() => {
-    const controller = new AbortController();
-    load(controller.signal);
-    const timer = window.setInterval(() => load(controller.signal), POLL_MS);
-    const onFocus = () => load(controller.signal);
-    window.addEventListener("focus", onFocus);
+    };
+    const poll = () => load(MODEL_LIMIT_RETRIES);
+    poll();
+    const timer = window.setInterval(poll, POLL_MS);
+    window.addEventListener("focus", poll);
     return () => {
       controller.abort();
+      window.clearTimeout(retryTimer);
       window.clearInterval(timer);
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", poll);
     };
-  }, [load]);
+  }, [sdk]);
   return bars;
 }
 
@@ -267,78 +364,96 @@ function LimitTrack({ window, name, label }: {
   );
 }
 
-function UsageBar({ bar, provider, pad }: {
+function UsageBar({ bar, provider, padding, compact }: {
   bar: ProviderBar;
   provider: ProviderInfo | undefined;
-  /** Keep an empty cell for a missing window so the bar stays half-width. */
-  pad: boolean;
+  /** Empty cells after the bar, so a short row keeps the cell width. */
+  padding: number;
+  /** Narrow cells: drop the reset time, which stays in the tooltip. */
+  compact: boolean;
 }) {
   const providerName = provider?.displayName ?? bar.providerId;
   const name = bar.account ? `${providerName} (${bar.account})` : providerName;
-  const limits = [
-    { label: "7d", window: bar.window },
-    { label: "5h", window: bar.fiveHour },
-  ];
   return (
     <>
-      {limits.map(({ label, window }) => window ? (
-        <div
-          key={label}
-          className="flex min-w-0 flex-1 basis-0 flex-col gap-1"
-          title={limitTitle(name, label, window)}
-        >
-          <div className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-sidebar-foreground">
-            <ProviderIcon
-              providerKind="agent"
-              provider={provider ?? { id: bar.providerId }}
-              className="size-3 shrink-0"
-              aria-label={name}
-            />
-            <span className="shrink-0 text-muted-foreground">{label}</span>
-            <span className="shrink-0 tabular-nums">{remaining(window)}%</span>
-            {formatReset(window.resetsAt) ? (
-              <span className="ml-auto min-w-0 truncate tabular-nums text-muted-foreground">
-                {formatReset(window.resetsAt)}
-              </span>
-            ) : null}
+      {bar.limits.map(({ key, label, model, window }) => {
+        const title = model ? `${model} ${label}` : label;
+        return (
+          <div
+            key={key}
+            className="flex min-w-0 flex-1 basis-0 flex-col gap-1"
+            title={limitTitle(name, title, window)}
+          >
+            <div className="flex min-w-0 items-center gap-1 overflow-hidden text-[11px] text-sidebar-foreground">
+              <ProviderIcon
+                providerKind="agent"
+                provider={provider ?? { id: bar.providerId }}
+                className="size-3 shrink-0"
+                aria-label={name}
+              />
+              {model ? (
+                <span
+                  className="min-w-0 truncate"
+                  style={{ color: "var(--primary)", fontWeight: 600 }}
+                >
+                  {model}
+                </span>
+              ) : null}
+              <span className="shrink-0 text-muted-foreground">{label}</span>
+              <span className="shrink-0 tabular-nums">{remaining(window)}%</span>
+              {!compact && formatReset(window.resetsAt) ? (
+                <span className="ml-auto min-w-0 truncate tabular-nums text-muted-foreground">
+                  {formatReset(window.resetsAt)}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex overflow-hidden" style={{ height: 6, borderRadius: 9999 }}>
+              <LimitTrack window={window} name={name} label={title} />
+            </div>
           </div>
-          <div className="flex overflow-hidden" style={{ height: 6, borderRadius: 9999 }}>
-            <LimitTrack window={window} name={name} label={label} />
-          </div>
-        </div>
-      ) : pad ? (
-        // Keeps weekly bars aligned in the left column across rows.
-        <div key={label} className="min-w-0 flex-1 basis-0" />
-      ) : null)}
+        );
+      })}
+      {Array.from({ length: padding }, (_, i) => (
+        <div key={`pad-${i}`} className="min-w-0 flex-1 basis-0" />
+      ))}
     </>
   );
 }
+
+/** The most cells one row holds before labels stop fitting. */
+const MAX_ROW_CELLS = 3;
 
 function UsageBarsOverlay() {
   const mount = useSidebarMount();
   const bars = useWeeklyUsage();
   const { providers } = experimental_useProviders();
   if (mount === null || bars === null || bars.length === 0) return null;
-  const renderBar = (bar: ProviderBar, pad: boolean) => (
-    <UsageBar
-      key={bar.key}
-      bar={bar}
-      provider={providers.find((p) => p.id === bar.providerId)}
-      pad={pad}
-    />
-  );
-  // Local-login bars share one row; each pooled account gets its own row.
-  const shared = bars.filter((bar) => !bar.account);
-  const accounts = bars.filter((bar) => bar.account);
+  // Local-login bars share one row while they fit; each pooled account, and
+  // each local provider once they no longer fit, gets its own row.
+  const local = bars.filter((bar) => !bar.account);
+  const localCells = local.reduce((n, bar) => n + bar.limits.length, 0);
+  const rows = local.length > 1 && localCells <= MAX_ROW_CELLS
+    ? [local, ...bars.filter((bar) => bar.account).map((bar) => [bar])]
+    : bars.map((bar) => [bar]);
+  const rowLimits = rows.map((row) => row.flatMap((bar) => bar.limits));
+  // Every row has the same number of cells, so a short row keeps the cell width.
+  const cells = Math.max(2, ...rowLimits.map((limits) => limits.length));
+  const compact = cells >= MAX_ROW_CELLS;
   return createPortal(
     <div className="flex flex-col gap-1.5 px-3 pb-2 pt-2">
-      {shared.length > 0 ? (
-        <div className="flex gap-2">
-          {shared.map((bar) => renderBar(bar, shared.length === 1))}
+      {rows.map((row, r) => (
+        <div key={row.map((bar) => bar.key).join()} className="flex gap-2">
+          {row.map((bar, i) => (
+            <UsageBar
+              key={bar.key}
+              bar={bar}
+              provider={providers.find((p) => p.id === bar.providerId)}
+              // The row's last bar carries its padding.
+              padding={i === row.length - 1 ? cells - rowLimits[r].length : 0}
+              compact={compact}
+            />
+          ))}
         </div>
-      ) : null}
-      {accounts.map((bar) => (
-        <div key={bar.key} className="flex gap-2">{renderBar(bar, true)}</div>
       ))}
     </div>,
     mount,
